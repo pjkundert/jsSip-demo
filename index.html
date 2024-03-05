@@ -1,0 +1,169 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <script type="text/javascript" src="./lib/jquery-3.7.1.js"></script>
+    <script type="text/javascript" src="./lib/jsSIP/jssip-3.10.0.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="./styles.css">
+</head>
+<body>
+<div id="callControl">
+    <h2>JsSIP Caller</h2>
+    <div id="to">
+        <input id="num" type="text" placeholder="Enter phone number"/>
+    </div>
+    <div id="login">
+        <label for="username">Username:</label>
+        <input type="text" id="username" placeholder="Enter your SIP username">
+        <label for="password">Password:</label>
+        <input type="password" id="password" placeholder="Enter your SIP password">
+        <label for="server">Server:</label>
+        <input type="text" id="server" placeholder="Enter SIP server address">
+        <button id="loginBtn">Login</button>
+    </div>
+    <div id="call">Call</div>
+    <div id="hangup">Hangup</div>
+    <div id="accept">Accept</div>
+    <div id="decline">Decline</div>
+</div>
+
+<script>
+    JsSIP.debug.enable('JsSIP:*');
+
+    var remoteAudio = new window.Audio();
+    remoteAudio.autoplay = true;
+    var ua;
+    var session;
+
+    // Функция для аутентификации пользователя
+    $('#loginBtn').click(function () {
+        var username = $('#username').val();
+        var password = $('#password').val();
+        var server = $('#server').val();
+
+        var socket = new JsSIP.WebSocketInterface('wss://' + server, {
+            requestParams: {
+                tlsOptions: {
+                    rejectUnauthorized: false
+                }
+            }
+        });
+
+        var configuration = {
+            sockets: [socket],
+            uri: 'sip:' + username + '@' + server,
+            password: password
+        };
+
+        ua = new JsSIP.UA(configuration);
+        ua.start();
+
+        // События регистрации клиента
+        ua.on('connected', function (e) {
+            console.log('connected');
+            ua.register();
+        });
+
+        ua.on('registered', function (e) {
+            console.log('registered');
+            $('#call').css({'display': 'flex'});
+        });
+
+        ua.on('unregistered', function (e) {
+            console.log('unregistered');
+            $('#call').css({'display': 'none'});
+            $('#hangup').css({'display': 'none'});
+            $('#accept').css({'display': 'none'});
+            $('#decline').css({'display': 'none'});
+        });
+
+        ua.on('registrationFailed', function (e) {
+            console.log('registrationFailed');
+        });
+
+        // Обработка входящих вызовов
+        ua.on('newRTCSession', function (data) {
+            var newSession = data.session;
+
+            if (newSession.direction === 'incoming') {
+                // Обработка входящего вызова
+                $('#call').css({'display': 'none'});
+                $('#hangup').css({'display': 'none'});
+                $('#accept').css({'display': 'flex'});
+                $('#decline').css({'display': 'flex'});
+
+                $('#accept').click(function () {
+                    newSession.answer();
+                    $('#accept').css({'display': 'none'});
+                    $('#decline').css({'display': 'none'});
+                    $('#hangup').css({'display': 'flex'});
+                });
+
+                $('#decline').click(function () {
+                    newSession.terminate();
+                    $('#accept').css({'display': 'none'});
+                    $('#decline').css({'display': 'none'});
+                    $('#call').css({'display': 'flex'});
+                });
+
+                newSession.on('ended', function () {
+                    $('#accept').css({'display': 'none'});
+                    $('#decline').css({'display': 'none'});
+                    $('#call').css({'display': 'flex'});
+                    $('#hangup').css({'display': 'none'});
+                });
+            }
+        });
+    });
+
+    // Обработка события исх. звонка и кнопки для звонка
+    var eventHandlers = {
+        'progress': function (e) {
+            console.log('call is in progress');
+        },
+        'failed': function (e) {
+            console.log('call failed with cause: ' + e.cause);
+            $('#call').css({'display': 'flex'});
+            $('#hangup').css({'display': 'none'});
+        },
+        'ended': function (e) {
+            console.log('call ended with cause: ' + e.cause);
+            $('#call').css({'display': 'flex'});
+            $('#hangup').css({'display': 'none'});
+            $('#accept').css({'display': 'none'});
+            $('#decline').css({'display': 'none'});
+        },
+        'confirmed': function (e) {
+            console.log('call confirmed');
+        },
+        'trackAdded': function (e) {
+            console.log('trackAdded');
+            remoteAudio.srcObject = e.streams[0];
+        }
+    };
+
+    var options = {
+        'eventHandlers': eventHandlers,
+        'mediaConstraints': {'audio': true, 'video': false}
+    };
+
+    // Кнопка для звонка
+    $('#call').click(function (e) {
+        session = ua.call($('#num').val(), options);
+        $('#call').css({'display': 'none'});
+        $('#hangup').css({'display': 'flex'});
+    });
+
+    // Кнопка для отбоя звонка
+    $('#hangup').click(function () {
+        if (session) {
+            session.terminate();
+        }
+
+        $('#call').css({'display': 'flex'});
+        $('#hangup').css({'display': 'none'});
+        $('#accept').css({'display': 'none'});
+        $('#decline').css({'display': 'none'});
+    });
+</script>
+</body>
+</html>
