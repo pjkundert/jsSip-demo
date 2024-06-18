@@ -14,10 +14,16 @@
     <div id="login">
         <label for="username">Username:</label>
         <input type="text" id="username" placeholder="Enter your SIP username">
+	<br>
         <label for="password">Password:</label>
         <input type="password" id="password" placeholder="Enter your SIP password">
+	<br>
+        <label for="uri">URI:</label>
+        <input type="text" id="uri" placeholder="sip:user@... URI domain eg. example.org">
+	<br>
         <label for="server">Server:</label>
-        <input type="text" id="server" placeholder="Enter SIP server address">
+        <input type="text" id="server" placeholder="wss://...eg. example.org:8089/ws ">
+	<br>
         <button id="loginBtn">Login</button>
     </div>
     <div id="call">Call</div>
@@ -39,7 +45,8 @@
         var username = $('#username').val();
         var password = $('#password').val();
         var server = $('#server').val();
-
+        var uri = $('#uri').val();
+ 
         var socket = new JsSIP.WebSocketInterface('wss://' + server, {
             requestParams: {
                 tlsOptions: {
@@ -50,7 +57,7 @@
 
         var configuration = {
             sockets: [socket],
-            uri: 'sip:' + username + '@' + server,
+            uri: 'sip:' + username + '@' + uri,
             password: password
         };
 
