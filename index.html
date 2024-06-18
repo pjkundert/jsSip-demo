@@ -12,19 +12,19 @@
         <input id="num" type="text" placeholder="Enter phone number"/>
     </div>
     <div id="login">
-        <label for="username">Username:</label>
-        <input type="text" id="username" placeholder="Enter your SIP username">
+        <label for="username">SIP Username:</label>
+        <input type="text" id="username" value="webrtc">
 	<br>
-        <label for="password">Password:</label>
-        <input type="password" id="password" placeholder="Enter your SIP password">
+        <label for="password">SIP Password:</label>
+        <input type="password" id="password" placeholder="">
 	<br>
-        <label for="uri">URI:</label>
-        <input type="text" id="uri" placeholder="sip:user@... URI domain eg. example.org">
+        <label for="uri">sip:user@... URI domain:</label>
+        <input type="text" id="uri" value="pbx-sip.admin.zifi.ca">
 	<br>
-        <label for="server">Server:</label>
-        <input type="text" id="server" placeholder="wss://...eg. example.org:8089/ws ">
+        <label for="server">wss://... Server:</label>
+        <input type="text" id="server" value="pbx-sip.admin.zifi.ca:8089/ws">
 	<br>
-        <button id="loginBtn">Login</button>
+        <button id="loginBtn">Login</button> <div id="state"/>
     </div>
     <div id="call">Call</div>
     <div id="hangup">Hangup</div>
@@ -66,16 +66,19 @@
 
         // События регистрации клиента
         ua.on('connected', function (e) {
+	    $('#state').html("Connected")
             console.log('connected');
             ua.register();
         });
 
         ua.on('registered', function (e) {
+	    $('#state').html("Registered")
             console.log('registered');
             $('#call').css({'display': 'flex'});
         });
 
         ua.on('unregistered', function (e) {
+	    $('#state').html("Unregistered")
             console.log('unregistered');
             $('#call').css({'display': 'none'});
             $('#hangup').css({'display': 'none'});
@@ -84,13 +87,15 @@
         });
 
         ua.on('registrationFailed', function (e) {
+	    $('#state').html("Registration Failed")
             console.log('registrationFailed');
         });
 
         // Обработка входящих вызовов
         ua.on('newRTCSession', function (data) {
             var newSession = data.session;
-
+	    $('#state').html(`New RTC Session ${data.session.direction}`)
+	    console.log('newRTCSession', data)
             if (newSession.direction === 'incoming') {
                 // Обработка входящего вызова
                 $('#call').css({'display': 'none'});
@@ -125,14 +130,17 @@
     // Обработка события исх. звонка и кнопки для звонка
     var eventHandlers = {
         'progress': function (e) {
+	    $('#state').html("Call in progress")
             console.log('call is in progress');
         },
         'failed': function (e) {
+	    $('#state').html(`Call failed: ${e.cause}`)
             console.log('call failed with cause: ' + e.cause);
             $('#call').css({'display': 'flex'});
             $('#hangup').css({'display': 'none'});
         },
         'ended': function (e) {
+	    $('#state').html(`Call ended: ${e.cause}`)
             console.log('call ended with cause: ' + e.cause);
             $('#call').css({'display': 'flex'});
             $('#hangup').css({'display': 'none'});
@@ -140,9 +148,11 @@
             $('#decline').css({'display': 'none'});
         },
         'confirmed': function (e) {
+	    $('#state').html("Call Confirmed")
             console.log('call confirmed');
         },
         'trackAdded': function (e) {
+	    $('#state').html("Track Added")
             console.log('trackAdded');
             remoteAudio.srcObject = e.streams[0];
         }
