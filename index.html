@@ -44,6 +44,7 @@
     var session;
 
 
+    // Eventually invokes 'disconnected', re-enabling the #loginBtn
     $('#logoutBtn').click(function () {
 	if ( ua ) {
 	    ua.stop();
@@ -57,11 +58,6 @@
         var server = $('#server').val();
         var uri = $('#uri').val();
  
-	if ( socket ) {
-	    // Attempt to cleanly shut down the connection for a moment
-	    ua.stop();
-	}
-
         socket = new JsSIP.WebSocketInterface('wss://' + server, {
             requestParams: {
                 tlsOptions: {
@@ -78,12 +74,28 @@
 
         ua = new JsSIP.UA(configuration);
 
+        ua.on('connecting', function (data) {
+	    $('#state').html(`Connecting: ${data}`)
+            console.log(`connecting: ${data}`);
+            $('#call').css({'display': 'flex'}).prop('disabled', true);
+        });
+
         // События регистрации клиента
-        ua.on('connected', function (e) {
-	    $('#state').html("Connected")
-            console.log('connected');
+        ua.on('connected', function (data) {
+	    $('#state').html(`Connected: ${data}`)
+            console.log(`connected: ${data}`);
             ua.register();
             $('#call').css({'display': 'flex'}).prop('disabled', true);
+
+            $('#loginBtn').prop('disabled', true);
+        });
+
+        ua.on('disconnected', function (data) {
+	    $('#state').html(`Disconnected: ${data}`)
+            console.log(`disconnected: ${data}`);
+            $('#call').css({'display': 'flex'}).prop('disabled', true);
+
+            $('#loginBtn').prop('disabled', false);
         });
 
         ua.on('registered', function (e) {
@@ -108,6 +120,7 @@
             $('#hangup').css({'display': 'none'});
             $('#accept').css({'display': 'none'});
             $('#decline').css({'display': 'none'});
+
         });
 
         // Обработка входящих вызовов

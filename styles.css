@@ -60,6 +60,16 @@ input[type="password"] {
     cursor: pointer;
     margin-top: 10px;
 }
+#loginBtn:disabled {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #003d88;
+    color: #888;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
 
 #logoutBtn {
     padding: 10px 20px;
@@ -90,9 +100,11 @@ input[type="password"] {
 
 #call {
     background-color: #007bff;
+    color: #fff
 }
 #call:disabled {
     background-color: #003d88;
+    color: #888
 }
 
 #hangup {
