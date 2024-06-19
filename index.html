@@ -9,11 +9,11 @@
 <div id="callControl">
     <h2>JsSIP Caller</h2>
     <div id="to">
-        <input id="num" type="text" placeholder="Enter phone number"/>
+        <input id="num" type="text" value="1003"/>
     </div>
     <div id="login">
         <label for="username">SIP Username:</label>
-        <input type="text" id="username" value="webrtc">
+        <input type="text" id="username" value="ptt1">
 	<br>
         <label for="password">SIP Password:</label>
         <input type="password" id="password" placeholder="">
@@ -24,12 +24,14 @@
         <label for="server">wss://... Server:</label>
         <input type="text" id="server" value="pbx-sip.admin.zifi.ca:8089/ws">
 	<br>
-        <button id="loginBtn">Login</button> <div id="state"/>
+        <button id="loginBtn">Login</button>
+        <button id="logoutBtn">Logout</button>
+	<div id="state"/> 
     </div>
-    <div id="call">Call</div>
-    <div id="hangup">Hangup</div>
-    <div id="accept">Accept</div>
-    <div id="decline">Decline</div>
+    <button id="call" style="display: flex" disabled>Call</div>
+    <button id="hangup" style="display: none">Hangup</div>
+    <button id="accept" style="display: none">Accept</div>
+    <button id="decline" style="display: none">Decline</div>
 </div>
 
 <script>
@@ -37,8 +39,16 @@
 
     var remoteAudio = new window.Audio();
     remoteAudio.autoplay = true;
+    var socket;
     var ua;
     var session;
+
+
+    $('#logoutBtn').click(function () {
+	if ( ua ) {
+	    ua.stop();
+	}
+    })
 
     // Функция для аутентификации пользователя
     $('#loginBtn').click(function () {
@@ -47,7 +57,12 @@
         var server = $('#server').val();
         var uri = $('#uri').val();
  
-        var socket = new JsSIP.WebSocketInterface('wss://' + server, {
+	if ( socket ) {
+	    // Attempt to cleanly shut down the connection for a moment
+	    ua.stop();
+	}
+
+        socket = new JsSIP.WebSocketInterface('wss://' + server, {
             requestParams: {
                 tlsOptions: {
                     rejectUnauthorized: false
@@ -62,25 +77,25 @@
         };
 
         ua = new JsSIP.UA(configuration);
-        ua.start();
 
         // События регистрации клиента
         ua.on('connected', function (e) {
 	    $('#state').html("Connected")
             console.log('connected');
             ua.register();
+            $('#call').css({'display': 'flex'}).prop('disabled', true);
         });
 
         ua.on('registered', function (e) {
 	    $('#state').html("Registered")
             console.log('registered');
-            $('#call').css({'display': 'flex'});
+            $('#call').css({'display': 'flex'}).prop('disabled', false);
         });
 
         ua.on('unregistered', function (e) {
 	    $('#state').html("Unregistered")
             console.log('unregistered');
-            $('#call').css({'display': 'none'});
+            $('#call').css({'display': 'flex'}).prop('disabled', true);
             $('#hangup').css({'display': 'none'});
             $('#accept').css({'display': 'none'});
             $('#decline').css({'display': 'none'});
@@ -89,6 +104,10 @@
         ua.on('registrationFailed', function (e) {
 	    $('#state').html("Registration Failed")
             console.log('registrationFailed');
+            $('#call').css({'display': 'flex'}).prop('disabled', true);
+            $('#hangup').css({'display': 'none'});
+            $('#accept').css({'display': 'none'});
+            $('#decline').css({'display': 'none'});
         });
 
         // Обработка входящих вызовов
@@ -125,6 +144,9 @@
                 });
             }
         });
+
+	// All callbacks registered; start
+        ua.start();
     });
 
     // Обработка события исх. звонка и кнопки для звонка
@@ -132,17 +154,23 @@
         'progress': function (e) {
 	    $('#state').html("Call in progress")
             console.log('call is in progress');
+            $('#call').css({'display': 'none'})
+            $('#hangup').css({'display': 'flex'});
+            $('#accept').css({'display': 'none'});
+            $('#decline').css({'display': 'none'});
         },
         'failed': function (e) {
 	    $('#state').html(`Call failed: ${e.cause}`)
             console.log('call failed with cause: ' + e.cause);
-            $('#call').css({'display': 'flex'});
+            $('#call').css({'display': 'flex'}).prop('disabled', false);
             $('#hangup').css({'display': 'none'});
+            $('#accept').css({'display': 'none'});
+            $('#decline').css({'display': 'none'});
         },
         'ended': function (e) {
 	    $('#state').html(`Call ended: ${e.cause}`)
             console.log('call ended with cause: ' + e.cause);
-            $('#call').css({'display': 'flex'});
+            $('#call').css({'display': 'flex'}).prop('disabled', false);
             $('#hangup').css({'display': 'none'});
             $('#accept').css({'display': 'none'});
             $('#decline').css({'display': 'none'});
@@ -150,6 +178,8 @@
         'confirmed': function (e) {
 	    $('#state').html("Call Confirmed")
             console.log('call confirmed');
+            $('#call').css({'display': 'none'});
+            $('#hangup').css({'display': 'flex'})
         },
         'trackAdded': function (e) {
 	    $('#state').html("Track Added")
@@ -166,8 +196,7 @@
     // Кнопка для звонка
     $('#call').click(function (e) {
         session = ua.call($('#num').val(), options);
-        $('#call').css({'display': 'none'});
-        $('#hangup').css({'display': 'flex'});
+        $('#call').css({'display': 'flex'}).prop('disabled', true);
     });
 
     // Кнопка для отбоя звонка
@@ -175,11 +204,6 @@
         if (session) {
             session.terminate();
         }
-
-        $('#call').css({'display': 'flex'});
-        $('#hangup').css({'display': 'none'});
-        $('#accept').css({'display': 'none'});
-        $('#decline').css({'display': 'none'});
     });
 </script>
 </body>

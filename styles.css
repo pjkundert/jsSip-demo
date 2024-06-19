@@ -61,6 +61,17 @@ input[type="password"] {
     margin-top: 10px;
 }
 
+#logoutBtn {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #7b0000;
+    color: #fff;
+    border: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
 #call,
 #hangup,
 #accept,
@@ -79,6 +90,9 @@ input[type="password"] {
 
 #call {
     background-color: #007bff;
+}
+#call:disabled {
+    background-color: #003d88;
 }
 
 #hangup {
