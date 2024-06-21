@@ -2,7 +2,7 @@
 <html>
 <head>
     <script type="text/javascript" src="./lib/jquery-3.7.1.js"></script>
-    <script type="text/javascript" src="./lib/jsSIP/jssip-3.10.0.min.js"></script>
+    <script type="text/javascript" src="./lib/jsSIP/jssip.js"></script>
     <link rel="stylesheet" type="text/css" href="./styles.css">
 </head>
 <body>
@@ -39,6 +39,7 @@
 
     var remoteAudio = new window.Audio();
     remoteAudio.autoplay = true;
+
     var socket;
     var ua;
     var session;
@@ -49,6 +50,7 @@
 	if ( ua ) {
 	    ua.stop();
 	}
+	remoteAudio.muted = true;
     })
 
     // Функция для аутентификации пользователя
@@ -57,7 +59,9 @@
         var password = $('#password').val();
         var server = $('#server').val();
         var uri = $('#uri').val();
- 
+	
+	remoteAudio.muted = false;
+
         socket = new JsSIP.WebSocketInterface('wss://' + server, {
             requestParams: {
                 tlsOptions: {
