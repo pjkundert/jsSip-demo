@@ -12,53 +12,46 @@
             padding: 20px;
             background-color: #f0f0f0;
         }
-
         #callControl {
             max-width: 400px;
             margin: 0 auto;
         }
-
         .input-group {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
-
         .input-group label {
             width: 120px;
             text-align: right;
             margin-right: 10px;
         }
-
         input {
             flex-grow: 1;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-
         .button-group {
             display: flex;
             justify-content: space-between;
             margin-top: 15px;
         }
-
         button {
             padding: 10px 20px;
             border: none;
             border-radius: 4px;
             color: white;
             cursor: pointer;
+            width: 100%;
         }
-
-        #loginBtn { background-color: #007bff; width: 100%; }
-        #loginBtn:disabled { background-color: #003d88; width: 100%; }
-        #logoutBtn { background-color: #dc3545; width: 100%; }
-        #callBtn { background-color: #28a745; width: 100%; }
-        #callBtn:disabled { background-color: #145a23; width: 100%; }
-        #hangupBtn { background-color: #dc3545; width: 100%; }
-        #acceptBtn { background-color: #28a745; width: 100%; }
-
+        #loginBtn { background-color: #007bff; }
+        #loginBtn:disabled { background-color: #003d88; }
+        #logoutBtn { background-color: #dc3545; }
+        #callBtn { background-color: #28a745; }
+        #callBtn:disabled { background-color: #145a23; }
+        #hangupBtn { background-color: #dc3545; }
+        #acceptBtn { background-color: #28a745; }
         #state {
             text-align: center;
             margin-top: 20px;
@@ -113,29 +106,15 @@ remoteAudio.autoplay = true;
 
 let ua, session;
 
-  const state = (conn, regi, call, message, incoming) => {
-    $('#state').text( ( incoming ? 'Incoming ' : '' ) + message );
+const updateState = (conn, reg, call, message, incoming = false) => {
+    $('#state').text((incoming ? 'Incoming ' : '') + message);
     console.log(message);
 
-    $('#loginBtn').prop('disabled', regi === 'registered')
-
-    if (['ended', 'failed', 'available'].includes(call)) {
-      $('#callBtn').show().prop('disabled', regi !== 'registered');
-    } else {
-      $('#callBtn').hide();
-    }
-
-    if (incoming && call === 'progress') {
-      $('#acceptBtn').show();
-    } else {
-      $('#acceptBtn').hide();
-    }
-
-    if (['accepted', 'progress', 'confirmed'].includes(call)) {
-      $('#hangupBtn').show();
-    } else {
-      $('#hangupBtn').hide();
-    }
+    $('#loginBtn').prop('disabled', reg === 'registered');
+    $('#callBtn').toggle(['ended', 'failed', 'available'].includes(call))
+                 .prop('disabled', reg !== 'registered');
+    $('#acceptBtn').toggle(incoming && call === 'progress');
+    $('#hangupBtn').toggle(['accepted', 'progress', 'confirmed'].includes(call));
 };
 
 const setupUA = () => {
@@ -149,48 +128,34 @@ const setupUA = () => {
 
     ua = new JsSIP.UA(config);
 
-    ua.on('connecting', () => {
-      state( 'connecting', 'unregistered', 'unavailable', 'Connecting');
-    });
+    ua.on('connecting', () => updateState('connecting', 'unregistered', 'unavailable', 'Connecting'));
     ua.on('connected', () => {
-      state( 'connected',  'unregistered', 'unavailable', 'Connected');
-      ua.register();
+        updateState('connected', 'unregistered', 'unavailable', 'Connected');
+        ua.register();
     });
-    ua.on('disconnected', () => {
-      state( 'disconnected',  'unregistered', 'unavailable', 'Disconnected');
-    });
-    ua.on('registered', () => {
-      state( 'connected',  'registered', 'available', 'Registered');
-    });
-    ua.on('unregistered', () => {
-      state( 'connected',  'unregistered', 'unavailable', 'Unregistered');
-    });
-    ua.on('registrationFailed', () => {
-      state( 'connected',  'unregistered', 'unavailable', 'Registration Failed');
-    });
+    ua.on('disconnected', () => updateState('disconnected', 'unregistered', 'unavailable', 'Disconnected'));
+    ua.on('registered', () => updateState('connected', 'registered', 'available', 'Registered'));
+    ua.on('unregistered', () => updateState('connected', 'unregistered', 'unavailable', 'Unregistered'));
+    ua.on('registrationFailed', () => updateState('connected', 'unregistered', 'unavailable', 'Registration Failed'));
 
     ua.on('newRTCSession', ({ session: newSession }) => {
         session = newSession;
+        const incoming = session.direction === 'incoming';
 
-        let incoming = newSession.direction === 'incoming';
-        session.on('progress', () => {
-	  state( 'connected',  'registered', 'progress', 'Call in progress', incoming );
-        });
-        session.on('ended', () => {
-	  state( 'connected',  'registered', 'ended', 'Call ended', incoming );
-        });
-        session.on('failed', () => {
-	  state( 'connected',  'registered', 'failed', 'Call failed', incoming );
-        });
-        session.on('accepted', () => {
-	  state( 'connected',  'registered', 'accepted', 'Call accepted', incoming );
-        });
-        session.on('confirmed', () => {
-	  state( 'connected',  'registered', 'confirmed', 'Call confirmed', incoming );
-        });
-        session.on('trackAdded', (e) => {
-	  state( 'connected',  'registered', 'confirmed', 'Stream connected', incoming );
-          remoteAudio.srcObject = e.streams[0];
+        const sessionEvents = {
+            progress: 'Call in progress',
+            ended: 'Call ended',
+            failed: 'Call failed',
+            accepted: 'Call accepted',
+            confirmed: 'Call confirmed',
+            trackAdded: 'Stream connected'
+        };
+
+        Object.entries(sessionEvents).forEach(([event, message]) => {
+            session.on(event, (e) => {
+                updateState('connected', 'registered', event, message, incoming);
+                if (event === 'trackAdded') remoteAudio.srcObject = e.streams[0];
+            });
         });
     });
 };
@@ -202,25 +167,17 @@ $('#loginBtn').click(() => {
 });
 
 $('#logoutBtn').click(() => {
-    if (ua) {
-        ua.stop();
-    }
+    if (ua) ua.stop();
     remoteAudio.muted = true;
 });
 
 $('#callBtn').click(() => {
-    session = ua.call($('#num').val(), {
-        mediaConstraints: { audio: true, video: false }
-    });
+    session = ua.call($('#num').val(), { mediaConstraints: { audio: true, video: false } });
 });
 
-$('#hangupBtn').click(() => {
-    session.terminate();
-});
+$('#hangupBtn').click(() => session.terminate());
 
-$('#acceptBtn').click(() => {
-    session.answer();
-});
+$('#acceptBtn').click(() => session.answer());
 </script>
 </body>
 </html>
