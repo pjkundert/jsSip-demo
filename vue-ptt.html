@@ -1,0 +1,184 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue.js PTT JsSIP Demo</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jssip/3.10.1/jssip.min.js"></script> -->
+    <script src="./lib/jssip.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .ptt-button {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .ptt-button-outer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 15px solid;
+            box-sizing: border-box;
+        }
+        .ptt-button-inner {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            width: calc(100% - 30px);
+            height: calc(100% - 30px);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .disconnected { border-color: #808080; }
+        .connecting { border-color: #FFD700; }
+        .registered { border-color: #008000; }
+        .ready { background-color: #4CAF50; }
+        .pressed { background-color: #FFFFFF; color: #000000; }
+        .in-call { background-color: #2196F3; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <ptt-button></ptt-button>
+    </div>
+
+    <script>
+    const { createApp, ref, onMounted, onUnmounted } = Vue;
+
+    const PttButton = {
+        template: `
+            <button class="ptt-button" 
+                    @mousedown="startCall" 
+                    @mouseup="endCall" 
+                    @mouseleave="endCall">
+                <div class="ptt-button-outer" :class="connectionStatus"></div>
+                <div class="ptt-button-inner" :class="callStatus">
+                    {{ buttonText }}
+                </div>
+            </button>
+        `,
+        setup() {
+            const connectionStatus = ref('disconnected');
+            const callStatus = ref('ready');
+            const buttonText = ref('PTT');
+            let ua, session;
+
+            const updateState = (conn, reg, call) => {
+                if (conn === 'connected' && reg === 'registered') {
+                    connectionStatus.value = 'registered';
+                } else if (conn === 'connected' || conn === 'connecting') {
+                    connectionStatus.value = 'connecting';
+                } else {
+                    connectionStatus.value = 'disconnected';
+                }
+
+                if (call === 'confirmed') {
+                    callStatus.value = 'in-call';
+                    buttonText.value = 'Release to End';
+                } else if (call === 'progress') {
+                    callStatus.value = 'pressed';
+                    buttonText.value = 'Calling...';
+                } else {
+                    callStatus.value = 'ready';
+                    buttonText.value = 'Push to Talk';
+                }
+            };
+
+            const setupUA = () => {
+                const socket = new JsSIP.WebSocketInterface('wss://pbx-sip.admin.zifi.ca:8089/ws');
+                const configuration = {
+                    sockets: [socket],
+                    uri: 'sip:ptt1@pbx-sip.admin.zifi.ca',
+                    password: 'a'
+                };
+
+                ua = new JsSIP.UA(configuration);
+
+                ua.on('connecting', () => updateState('connecting', 'unregistered', 'unavailable'));
+                ua.on('connected', () => {
+                    updateState('connected', 'unregistered', 'unavailable');
+                    ua.register();
+                });
+                ua.on('disconnected', () => updateState('disconnected', 'unregistered', 'unavailable'));
+                ua.on('registered', () => updateState('connected', 'registered', 'available'));
+                ua.on('unregistered', () => updateState('connected', 'unregistered', 'unavailable'));
+                ua.on('registrationFailed', () => updateState('connected', 'unregistered', 'unavailable'));
+
+                ua.on('newRTCSession', ({ session: newSession }) => {
+                    session = newSession;
+                    
+                    session.on('progress', () => updateState('connected', 'registered', 'progress'));
+                    session.on('accepted', () => updateState('connected', 'registered', 'confirmed'));
+                    session.on('confirmed', () => updateState('connected', 'registered', 'confirmed'));
+                    session.on('ended', () => updateState('connected', 'registered', 'ended'));
+                    session.on('failed', () => updateState('connected', 'registered', 'failed'));
+                });
+
+                ua.start();
+            };
+
+            const startCall = () => {
+                if (ua && ua.isRegistered() && !session) {
+                    session = ua.call('1003', {
+                        mediaConstraints: { audio: true, video: false }
+                    });
+                }
+            };
+
+            const endCall = () => {
+                if (session) {
+                    session.terminate();
+                    session = null;
+                }
+            };
+
+            onMounted(() => {
+                setupUA();
+            });
+
+            onUnmounted(() => {
+                if (ua) {
+                    ua.stop();
+                }
+            });
+
+            return {
+                connectionStatus,
+                callStatus,
+                buttonText,
+                startCall,
+                endCall
+            };
+        }
+    };
+
+    createApp({
+        components: {
+            PttButton
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>
