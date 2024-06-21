@@ -1,227 +1,226 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="en">
 <head>
-    <script type="text/javascript" src="./lib/jquery-3.7.1.js"></script>
-    <script type="text/javascript" src="./lib/jsSIP/jssip.js"></script>
-    <link rel="stylesheet" type="text/css" href="./styles.css">
+    <meta charset="UTF-8">
+    <title>JsSIP Caller</title>
+    <script src="./lib/jquery-3.7.1.js"></script>
+    <script src="./lib/jssip.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        #callControl {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .input-group label {
+            width: 120px;
+            text-align: right;
+            margin-right: 10px;
+        }
+
+        input {
+            flex-grow: 1;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+        }
+
+        #loginBtn { background-color: #007bff; }
+        #loginBtn:disabled { background-color: #003d88; }
+        #logoutBtn { background-color: #dc3545; }
+        #callBtn { background-color: #28a745; width: 100%; }
+        #callBtn:disabled { background-color: #145a23; }
+        #hangupBtn { background-color: #dc3545; width: 100%; }
+        #acceptBtn { background-color: #28a745; width: 100%; }
+
+        #state {
+            text-align: center;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
 <div id="callControl">
     <h2>JsSIP Caller</h2>
-    <div id="to">
-        <input id="num" type="text" value="1003"/>
-    </div>
     <div id="login">
-        <label for="username">SIP Username:</label>
-        <input type="text" id="username" value="ptt1">
-	<br>
-        <label for="password">SIP Password:</label>
-        <input type="password" id="password" placeholder="">
-	<br>
-        <label for="uri">sip:user@... URI domain:</label>
-        <input type="text" id="uri" value="pbx-sip.admin.zifi.ca">
-	<br>
-        <label for="server">wss://... Server:</label>
-        <input type="text" id="server" value="pbx-sip.admin.zifi.ca:8089/ws">
-	<br>
-        <button id="loginBtn">Login</button>
-        <button id="logoutBtn">Logout</button>
-	<div id="state"/> 
+        <div class="input-group">
+            <label for="username">SIP Username:</label>
+            <input type="text" id="username" value="ptt1">
+        </div>
+        <div class="input-group">
+            <label for="password">SIP Password:</label>
+            <input type="password" id="password">
+        </div>
+        <div class="input-group">
+            <label for="uri">URI domain:</label>
+            <input type="text" id="uri" value="pbx-sip.admin.zifi.ca">
+        </div>
+        <div class="input-group">
+            <label for="server">Server:</label>
+            <input type="text" id="server" value="pbx-sip.admin.zifi.ca:8089/ws">
+        </div>
+        <div class="button-group">
+            <button id="loginBtn">Login</button>
+            <button id="logoutBtn">Logout</button>
+        </div>
     </div>
-    <button id="call" style="display: flex" disabled>Call</div>
-    <button id="hangup" style="display: none">Hangup</div>
-    <button id="accept" style="display: none">Accept</div>
-    <button id="decline" style="display: none">Decline</div>
+    <div id="dialer">
+        <div class="input-group">
+            <label for="num">Number to call:</label>
+            <input id="num" type="text" value="1003">
+        </div>
+        <div class="button-group">
+            <button id="callBtn" style="display: none" disabled>Call</button>
+            <button id="hangupBtn" style="display: none">Hangup</button>
+            <button id="acceptBtn" style="display: none">Accept</button>
+        </div>
+    </div>
+    <div id="state">Not connected</div>
 </div>
 
 <script>
-    JsSIP.debug.enable('JsSIP:*');
+JsSIP.debug.enable('JsSIP:*');
 
-    var remoteAudio = new window.Audio();
-    remoteAudio.autoplay = true;
+const remoteAudio = new window.Audio();
+remoteAudio.autoplay = true;
 
-    var socket;
-    var ua;
-    var session;
+let ua, session;
 
+  const state = (conn, regi, call, message, incoming) => {
+    $('#state').text( ( incoming ? 'Incoming ' : '' ) + message );
+    console.log(message);
 
-    // Eventually invokes 'disconnected', re-enabling the #loginBtn
-    $('#logoutBtn').click(function () {
-	if ( ua ) {
-	    ua.stop();
-	}
-	remoteAudio.muted = true;
-    })
+    $('#loginBtn').prop('disabled', regi === 'registered')
 
-    // Функция для аутентификации пользователя
-    $('#loginBtn').click(function () {
-        var username = $('#username').val();
-        var password = $('#password').val();
-        var server = $('#server').val();
-        var uri = $('#uri').val();
-	
-	remoteAudio.muted = false;
+    if (['ended', 'failed', 'available'].includes(call)) {
+      $('#callBtn').show().prop('disabled', regi !== 'registered');
+    } else {
+      $('#callBtn').hide();
+    }
 
-        socket = new JsSIP.WebSocketInterface('wss://' + server, {
-            requestParams: {
-                tlsOptions: {
-                    rejectUnauthorized: false
-                }
-            }
-        });
+    if (incoming && call === 'progress') {
+      $('#acceptBtn').show();
+    } else {
+      $('#acceptBtn').hide();
+    }
 
-        var configuration = {
-            sockets: [socket],
-            uri: 'sip:' + username + '@' + uri,
-            password: password
-        };
+    if (['accepted', 'progress', 'confirmed'].includes(call)) {
+      $('#hangupBtn').show();
+    } else {
+      $('#hangupBtn').hide();
+    }
+};
 
-        ua = new JsSIP.UA(configuration);
-
-        ua.on('connecting', function (data) {
-	    $('#state').html(`Connecting: ${data}`)
-            console.log(`connecting: ${data}`);
-            $('#call').css({'display': 'flex'}).prop('disabled', true);
-        });
-
-        // События регистрации клиента
-        ua.on('connected', function (data) {
-	    $('#state').html(`Connected: ${data}`)
-            console.log(`connected: ${data}`);
-            ua.register();
-            $('#call').css({'display': 'flex'}).prop('disabled', true);
-
-            $('#loginBtn').prop('disabled', true);
-        });
-
-        ua.on('disconnected', function (data) {
-	    $('#state').html(`Disconnected: ${data}`)
-            console.log(`disconnected: ${data}`);
-            $('#call').css({'display': 'flex'}).prop('disabled', true);
-
-            $('#loginBtn').prop('disabled', false);
-        });
-
-        ua.on('registered', function (e) {
-	    $('#state').html("Registered")
-            console.log('registered');
-            $('#call').css({'display': 'flex'}).prop('disabled', false);
-        });
-
-        ua.on('unregistered', function (e) {
-	    $('#state').html("Unregistered")
-            console.log('unregistered');
-            $('#call').css({'display': 'flex'}).prop('disabled', true);
-            $('#hangup').css({'display': 'none'});
-            $('#accept').css({'display': 'none'});
-            $('#decline').css({'display': 'none'});
-        });
-
-        ua.on('registrationFailed', function (e) {
-	    $('#state').html("Registration Failed")
-            console.log('registrationFailed');
-            $('#call').css({'display': 'flex'}).prop('disabled', true);
-            $('#hangup').css({'display': 'none'});
-            $('#accept').css({'display': 'none'});
-            $('#decline').css({'display': 'none'});
-
-        });
-
-        // Обработка входящих вызовов
-        ua.on('newRTCSession', function (data) {
-            var newSession = data.session;
-	    $('#state').html(`New RTC Session ${data.session.direction}`)
-	    console.log('newRTCSession', data)
-            if (newSession.direction === 'incoming') {
-                // Обработка входящего вызова
-                $('#call').css({'display': 'none'});
-                $('#hangup').css({'display': 'none'});
-                $('#accept').css({'display': 'flex'});
-                $('#decline').css({'display': 'flex'});
-
-                $('#accept').click(function () {
-                    newSession.answer();
-                    $('#accept').css({'display': 'none'});
-                    $('#decline').css({'display': 'none'});
-                    $('#hangup').css({'display': 'flex'});
-                });
-
-                $('#decline').click(function () {
-                    newSession.terminate();
-                    $('#accept').css({'display': 'none'});
-                    $('#decline').css({'display': 'none'});
-                    $('#call').css({'display': 'flex'});
-                });
-
-                newSession.on('ended', function () {
-                    $('#accept').css({'display': 'none'});
-                    $('#decline').css({'display': 'none'});
-                    $('#call').css({'display': 'flex'});
-                    $('#hangup').css({'display': 'none'});
-                });
-            }
-        });
-
-	// All callbacks registered; start
-        ua.start();
-    });
-
-    // Обработка события исх. звонка и кнопки для звонка
-    var eventHandlers = {
-        'progress': function (e) {
-	    $('#state').html("Call in progress")
-            console.log('call is in progress');
-            $('#call').css({'display': 'none'})
-            $('#hangup').css({'display': 'flex'});
-            $('#accept').css({'display': 'none'});
-            $('#decline').css({'display': 'none'});
-        },
-        'failed': function (e) {
-	    $('#state').html(`Call failed: ${e.cause}`)
-            console.log('call failed with cause: ' + e.cause);
-            $('#call').css({'display': 'flex'}).prop('disabled', false);
-            $('#hangup').css({'display': 'none'});
-            $('#accept').css({'display': 'none'});
-            $('#decline').css({'display': 'none'});
-        },
-        'ended': function (e) {
-	    $('#state').html(`Call ended: ${e.cause}`)
-            console.log('call ended with cause: ' + e.cause);
-            $('#call').css({'display': 'flex'}).prop('disabled', false);
-            $('#hangup').css({'display': 'none'});
-            $('#accept').css({'display': 'none'});
-            $('#decline').css({'display': 'none'});
-        },
-        'confirmed': function (e) {
-	    $('#state').html("Call Confirmed")
-            console.log('call confirmed');
-            $('#call').css({'display': 'none'});
-            $('#hangup').css({'display': 'flex'})
-        },
-        'trackAdded': function (e) {
-	    $('#state').html("Track Added")
-            console.log('trackAdded');
-            remoteAudio.srcObject = e.streams[0];
-        }
+const setupUA = () => {
+    const config = {
+        sockets: [new JsSIP.WebSocketInterface('wss://' + $('#server').val(), {
+            requestParams: { tlsOptions: { rejectUnauthorized: false } }
+        })],
+        uri: 'sip:' + $('#username').val() + '@' + $('#uri').val(),
+        password: $('#password').val()
     };
 
-    var options = {
-        'eventHandlers': eventHandlers,
-        'mediaConstraints': {'audio': true, 'video': false}
-    };
+    ua = new JsSIP.UA(config);
 
-    // Кнопка для звонка
-    $('#call').click(function (e) {
-        session = ua.call($('#num').val(), options);
-        $('#call').css({'display': 'flex'}).prop('disabled', true);
+    ua.on('connecting', () => {
+      state( 'connecting', 'unregistered', 'unavailable', 'Connecting');
+    });
+    ua.on('connected', () => {
+      state( 'connected',  'unregistered', 'unavailable', 'Connected');
+      ua.register();
+    });
+    ua.on('disconnected', () => {
+      state( 'disconnected',  'unregistered', 'unavailable', 'Disconnected');
+    });
+    ua.on('registered', () => {
+      state( 'connected',  'registered', 'available', 'Registered');
+    });
+    ua.on('unregistered', () => {
+      state( 'connected',  'unregistered', 'unavailable', 'Unregistered');
+    });
+    ua.on('registrationFailed', () => {
+      state( 'connected',  'unregistered', 'unavailable', 'Registration Failed');
     });
 
-    // Кнопка для отбоя звонка
-    $('#hangup').click(function () {
-        if (session) {
-            session.terminate();
-        }
+    ua.on('newRTCSession', ({ session: newSession }) => {
+        session = newSession;
+
+        let incoming = newSession.direction === 'incoming';
+        session.on('progress', () => {
+	  state( 'connected',  'registered', 'progress', 'Call in progress', incoming );
+        });
+        session.on('ended', () => {
+	  state( 'connected',  'registered', 'ended', 'Call ended', incoming );
+        });
+        session.on('failed', () => {
+	  state( 'connected',  'registered', 'failed', 'Call failed', incoming );
+        });
+        session.on('accepted', () => {
+	  state( 'connected',  'registered', 'accepted', 'Call accepted', incoming );
+        });
+        session.on('confirmed', () => {
+	  state( 'connected',  'registered', 'confirmed', 'Call confirmed', incoming );
+        });
+        session.on('trackAdded', (e) => {
+	  state( 'connected',  'registered', 'confirmed', 'Stream connected', incoming );
+          remoteAudio.srcObject = e.streams[0];
+        });
     });
+};
+
+$('#loginBtn').click(() => {
+    setupUA();
+    ua.start();
+    remoteAudio.muted = false;
+});
+
+$('#logoutBtn').click(() => {
+    if (ua) {
+        ua.stop();
+    }
+    remoteAudio.muted = true;
+});
+
+$('#callBtn').click(() => {
+    session = ua.call($('#num').val(), {
+        mediaConstraints: { audio: true, video: false }
+    });
+});
+
+$('#hangupBtn').click(() => {
+    session.terminate();
+});
+
+$('#acceptBtn').click(() => {
+    session.answer();
+});
 </script>
 </body>
 </html>
