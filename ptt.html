@@ -89,16 +89,19 @@
             <input id="uri" v-model="uri" placeholder="sip:user@example.com">
 
             <label for="password">Password:</label>
-            <input id="password" v-model="password" type="password" value="a">
+            <input id="password" v-model="password" type="password" placeholder="password">
+
+            <label for="destination">Destination:</label>
+            <input id="destination" v-model="destination" placeholder="number">
         </div>
-        <ptt-button :wss="wss" :uri="uri" :password="password"></ptt-button>
+        <ptt-button :wss="wss" :uri="uri" :password="password" :destination="destination"></ptt-button>
     </div>
 
     <script>
     const { createApp, ref, onMounted, onUnmounted, watch } = Vue;
 
     const PttButton = {
-        props: ['wss', 'uri', 'password'],
+        props: ['wss', 'uri', 'password', 'destination'],
         template: `
             <button class="ptt-button"
                     @touchstart="startCall" 
@@ -189,7 +192,7 @@
             const startCall = (event) => {
                 event.preventDefault();  // Avoids selecting text on touch
                 if (ua && ua.isRegistered() && !session) {
-                    session = ua.call('1003', {
+                    session = ua.call(props.destination, {
                         mediaConstraints: { audio: true, video: false }
                     });
                 }
@@ -228,11 +231,13 @@
             const wss = ref('wss://pbx-sip.admin.zifi.ca:8089/ws');
             const uri = ref('sip:ptt1@pbx-sip.admin.zifi.ca');
             const password = ref('');
+            const destination = ref('2002');
 
             return {
                 wss,
                 uri,
-                password
+                password,
+                destination
             };
         }
     }).mount('#app');
