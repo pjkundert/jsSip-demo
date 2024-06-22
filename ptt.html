@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Vue.js PTT JsSIP Demo</title>
+    <title>Configurable Vue.js PTT JsSIP Demo</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jssip/3.10.1/jssip.min.js"></script> -->
-    <script src="./lib/jssip.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/versatica/JsSIP@master/dist/jssip.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -15,6 +14,26 @@
             height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
+        }
+        #app {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .config-form {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .config-form label {
+            text-align: right;
+            padding-right: 10px;
+        }
+        .config-form input {
+            width: 250px;
+            padding: 5px;
         }
         .ptt-button {
             position: relative;
@@ -50,6 +69,7 @@
             font-weight: bold;
             color: white;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            user-select: none;
         }
         .disconnected { border-color: #808080; }
         .connecting { border-color: #FFD700; }
@@ -61,15 +81,24 @@
 </head>
 <body>
     <div id="app">
-        <ptt-button></ptt-button>
+        <div class="config-form">
+            <label for="wss">WebSocket Server:</label>
+            <input id="wss" v-model="wss" placeholder="wss://example.com:8089/ws">
+
+            <label for="uri">SIP URI:</label>
+            <input id="uri" v-model="uri" placeholder="sip:user@example.com">
+
+            <label for="password">Password:</label>
+            <input id="password" v-model="password" type="password" value="a">
+        </div>
+        <ptt-button :wss="wss" :uri="uri" :password="password"></ptt-button>
     </div>
 
     <script>
-    const { createApp, ref, onMounted, onUnmounted } = Vue;
+    const { createApp, ref, onMounted, onUnmounted, watch } = Vue;
 
     const PttButton = {
-        // Respond to mouse button down/up, or touch press (drag) release.  Doesn't use @touchmove, which
-        // fires when the touch is dragged outside the radius of the button.
+        props: ['wss', 'uri', 'password'],
         template: `
             <button class="ptt-button"
                     @touchstart="startCall" 
@@ -84,7 +113,7 @@
                 </div>
             </button>
         `,
-        setup() {
+        setup(props) {
             const connectionStatus = ref('disconnected');
             const callStatus = ref('ready');
             const buttonText = ref('PTT');
@@ -112,11 +141,16 @@
             };
 
             const startUA = () => {
-                const socket = new JsSIP.WebSocketInterface('wss://pbx-sip.admin.zifi.ca:8089/ws');
+                if (!props.wss || !props.uri || !props.password) {
+                    console.error('Missing configuration');
+                    return;
+                }
+
+                const socket = new JsSIP.WebSocketInterface(props.wss);
                 const configuration = {
                     sockets: [socket],
-                    uri: 'sip:ptt1@pbx-sip.admin.zifi.ca',
-                    password: 'a'
+                    uri: props.uri,
+                    password: props.password
                 };
 
                 ua = new JsSIP.UA(configuration);
@@ -145,12 +179,15 @@
             };
 
             const stopUA = () => {
-                ua.stop();
-                ua = null;
-                session = null;
+                if (ua) {
+                    ua.stop();
+                    ua = null;
+                    session = null;
+                }
             };
 
-            const startCall = () => {
+            const startCall = (event) => {
+                event.preventDefault();  // Avoids selecting text on touch
                 if (ua && ua.isRegistered() && !session) {
                     session = ua.call('1003', {
                         mediaConstraints: { audio: true, video: false }
@@ -165,9 +202,13 @@
                 }
             };
 
-            onMounted(() => startUA());
+            watch([() => props.wss, () => props.uri, () => props.password], () => {
+                stopUA();
+                startUA();
+            });
 
-            onUnmounted(() => stopUA());
+            onMounted(startUA);
+            onUnmounted(stopUA);
 
             return {
                 connectionStatus,
@@ -182,6 +223,17 @@
     createApp({
         components: {
             PttButton
+        },
+        setup() {
+            const wss = ref('wss://pbx-sip.admin.zifi.ca:8089/ws');
+            const uri = ref('sip:ptt1@pbx-sip.admin.zifi.ca');
+            const password = ref('');
+
+            return {
+                wss,
+                uri,
+                password
+            };
         }
     }).mount('#app');
     </script>
