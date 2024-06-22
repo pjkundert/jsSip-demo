@@ -68,8 +68,13 @@
     const { createApp, ref, onMounted, onUnmounted } = Vue;
 
     const PttButton = {
+        // Respond to mouse button down/up, or touch press (drag) release.  Doesn't use @touchmove, which
+        // fires when the touch is dragged outside the radius of the button.
         template: `
-            <button class="ptt-button" 
+            <button class="ptt-button"
+                    @touchstart="startCall" 
+                    @touchend="endCall" 
+                    @touchcancel="endCall" 
                     @mousedown="startCall" 
                     @mouseup="endCall" 
                     @mouseleave="endCall">
@@ -106,7 +111,7 @@
                 }
             };
 
-            const setupUA = () => {
+            const startUA = () => {
                 const socket = new JsSIP.WebSocketInterface('wss://pbx-sip.admin.zifi.ca:8089/ws');
                 const configuration = {
                     sockets: [socket],
@@ -139,6 +144,12 @@
                 ua.start();
             };
 
+            const stopUA = () => {
+                ua.stop();
+                ua = null;
+                session = null;
+            };
+
             const startCall = () => {
                 if (ua && ua.isRegistered() && !session) {
                     session = ua.call('1003', {
@@ -154,15 +165,9 @@
                 }
             };
 
-            onMounted(() => {
-                setupUA();
-            });
+            onMounted(() => startUA());
 
-            onUnmounted(() => {
-                if (ua) {
-                    ua.stop();
-                }
-            });
+            onUnmounted(() => stopUA());
 
             return {
                 connectionStatus,
