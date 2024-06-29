@@ -5,6 +5,7 @@
     <title>Configurable Vue.js PTT JsSIP Demo</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/versatica/JsSIP@master/dist/jssip.min.js"></script>
+    <link rel="icon" href="ptt.svg" sizes="any" type="image/svg+xml">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -137,8 +138,7 @@
                     connectionStatus.value = 'disconnected';
                 }
 
-                if (call === 'confirmed' || call == 'accepted') {
-                    remoteAudio.muted = false;
+                if (call === 'confirmed' || call === 'accepted') {
                     callStatus.value = 'in-call';
                     buttonText.value = 'Release to End';
                 } else if (call === 'progress') {

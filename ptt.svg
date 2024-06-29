@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- Outer ring (registered state) -->
+  <circle cx="100" cy="100" r="100" fill="#008000" />
+  
+  <!-- Inner circle (ready state) -->
+  <circle cx="100" cy="100" r="85" fill="#4CAF50" />
+  
+  <!-- Text -->
+  <text x="100" y="100" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">Push to Talk</text>
+</svg>
