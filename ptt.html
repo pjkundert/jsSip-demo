@@ -100,6 +100,12 @@
     <script>
     const { createApp, ref, onMounted, onUnmounted, watch } = Vue;
 
+    JsSIP.debug.enable('JsSIP:*');
+
+    const remoteAudio = new window.Audio();
+    remoteAudio.muted = true;  
+    remoteAudio.autoplay = true;
+
     const PttButton = {
         props: ['wss', 'uri', 'password', 'destination'],
         template: `
@@ -131,20 +137,22 @@
                     connectionStatus.value = 'disconnected';
                 }
 
-                if (call === 'confirmed') {
+                if (call === 'confirmed' || call == 'accepted') {
+                    remoteAudio.muted = false;
                     callStatus.value = 'in-call';
                     buttonText.value = 'Release to End';
                 } else if (call === 'progress') {
                     callStatus.value = 'pressed';
                     buttonText.value = 'Calling...';
                 } else {
+                    remoteAudio.muted = true;
                     callStatus.value = 'ready';
                     buttonText.value = 'Push to Talk';
                 }
             };
 
             const startUA = () => {
-                if (!props.wss || !props.uri || !props.password) {
+                if (!props.wss || !props.uri || !props.password || !props.destination) {
                     console.error('Missing configuration');
                     return;
                 }
@@ -153,7 +161,19 @@
                 const configuration = {
                     sockets: [socket],
                     uri: props.uri,
-                    password: props.password
+                    password: props.password,
+                    //turn_servers: {
+                    //    urls: [
+                    //        "turn:turn.cloudflare.com:3478?transport=udp",
+                    //        "turn:turn.cloudflare.com:3478?transport=tcp",
+                    //        "turns:turn.cloudflare.com:5349?transport=tcp"
+                    //    ],
+                    //    username: "<CF-username>",
+                    //    credential: "<CF-credential>"
+                    //},
+                    //stun_servers: [
+                    //    "stun:stun.cloudflare.com:3478"
+                    //]
                 };
 
                 ua = new JsSIP.UA(configuration);
@@ -172,7 +192,7 @@
                     session = newSession;
                     
                     session.on('progress', () => updateState('connected', 'registered', 'progress'));
-                    session.on('accepted', () => updateState('connected', 'registered', 'confirmed'));
+                    session.on('accepted', () => updateState('connected', 'registered', 'accepted'));
                     session.on('confirmed', () => updateState('connected', 'registered', 'confirmed'));
                     session.on('ended', () => updateState('connected', 'registered', 'ended'));
                     session.on('failed', () => updateState('connected', 'registered', 'failed'));
@@ -205,7 +225,7 @@
                 }
             };
 
-            watch([() => props.wss, () => props.uri, () => props.password], () => {
+            watch([() => props.wss, () => props.uri, () => props.password, () => props.destination], () => {
                 stopUA();
                 startUA();
             });
@@ -228,10 +248,10 @@
             PttButton
         },
         setup() {
-            const wss = ref('wss://pbx-sip.admin.zifi.ca:8089/ws');
-            const uri = ref('sip:ptt1@pbx-sip.admin.zifi.ca');
+            const wss = ref('wss://pbx.admin.zifi.ca/ws');
+            const uri = ref('sip:ptt1@pbx.admin.zifi.ca');
             const password = ref('');
-            const destination = ref('2002');
+            const destination = ref('2001');
 
             return {
                 wss,
