@@ -1,0 +1,13 @@
+[project]
+name = "jsSip_demo"
+dynamic = ["version", "dependencies"]
+
+[tool.setuptools]
+packages = ["jsSip_demo"]
+
+[tool.setuptools.dynamic]
+version = {attr = "jsSip_demo.__version__"}
+dependencies = {file = ["requirements.txt"]}
+
+[project.scripts]
+twilio_twiml_server = "jsSip_demo.twilio_twiml_server:main"

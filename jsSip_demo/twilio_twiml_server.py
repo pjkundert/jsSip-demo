@@ -58,5 +58,11 @@ class VoiceHandler:
         web.header('Content-Type', 'text/xml')
         return str(resp)
 
-if __name__ == "__main__":
+
+def main():
     app.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit( main() )
