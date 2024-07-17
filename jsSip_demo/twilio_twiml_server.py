@@ -1,8 +1,15 @@
+import click
+import logging
 import web
 import os
+import sys
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
 from twilio.twiml.voice_response import VoiceResponse, Dial
+
+
+log				= logging.getLogger( 'cli' )
+
 
 # Twilio configuration
 account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
@@ -15,7 +22,6 @@ urls = (
     '/voice', 'VoiceHandler'
 )
 
-app = web.application(urls, globals())
 
 class TokenGenerator:
     def GET(self):
@@ -58,11 +64,58 @@ class VoiceHandler:
         web.header('Content-Type', 'text/xml')
         return str(resp)
 
+log_cfg                         = {
+    "level":    logging.WARNING,
+    "datefmt":  '%Y-%m-%d %H:%M:%S',
+    "format":   '%(asctime)s %(name)-16.16s %(message)s',
+}
 
-def main():
+
+log_levelmap                    = {
+    -2: logging.FATAL,
+    -1: logging.ERROR,
+    0: logging.WARNING,
+    1: logging.INFO,
+    2: logging.DEBUG,
+}
+
+
+def log_level( adjust ):
+    """Return a logging level corresponding to the +'ve/-'ve adjustment"""
+    return log_levelmap[
+        max(
+            min(
+                adjust,
+                max( log_levelmap.keys() )
+            ),
+            min( log_levelmap.keys() )
+        )
+    ]
+
+
+@click.group()
+@click.option('-v', '--verbose', count=True)
+@click.option('-q', '--quiet', count=True)
+def cli( verbose, quiet ):
+    cli.verbosity               = verbose - quiet
+    log_cfg['level']            = log_level( cli.verbosity )
+    logging.basicConfig( **log_cfg )
+    if verbose or quiet:
+        logging.getLogger().setLevel( log_cfg['level'] )
+cli.verbosity                   = 0  # noqa: E305
+
+
+@click.command()
+@click.option('-i', '--interface', default="0.0.0.0:8001", help='interface:port to run the server on (default: 0.0.0.0:8001)')
+def http( interface ):
+    sys.argv			= [sys.argv[0], interface]
+    app				= web.application(urls, locals())
     app.run()
     return 0
 
 
+cli.add_command( http )
+
+
 if __name__ == "__main__":
-    sys.exit( main() )
+    sys.exit( http() )
