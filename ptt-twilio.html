@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twilio Push-to-Talk</title>
+    <script src="https://sdk.twilio.com/js/client/v1.14/twilio.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #config-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        input, button {
+            padding: 5px;
+            font-size: 16px;
+        }
+        #ptt-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+        #ptt-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <form id="config-form">
+            <input type="text" id="account-sid" placeholder="Twilio Account SID" required>
+            <input type="text" id="auth-token" placeholder="Twilio Auth Token" required>
+            <input type="text" id="twiml-app-sid" placeholder="TwiML App SID" required>
+            <input type="text" id="client-identity" placeholder="Client Identity" required>
+            <input type="text" id="destination" placeholder="Destination" required>
+            <button type="submit">Connect</button>
+        </form>
+        <button id="ptt-button" disabled>Push to Talk</button>
+    </div>
+
+    <script>
+        let device;
+        let connection;
+
+        document.getElementById('config-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const accountSid = document.getElementById('account-sid').value;
+            const authToken = document.getElementById('auth-token').value;
+            const twimlAppSid = document.getElementById('twiml-app-sid').value;
+            const clientIdentity = document.getElementById('client-identity').value;
+
+            try {
+                const response = await fetch('/get-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ accountSid, authToken, twimlAppSid, clientIdentity }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to get token');
+                }
+
+                const { token } = await response.json();
+
+                device = new Twilio.Device(token, {
+                    codecPreferences: ['opus', 'pcmu'],
+                    fakeLocalDTMF: true,
+                    enableRingingState: true,
+                });
+
+                device.on('ready', function() {
+                    console.log('Twilio.Device Ready!');
+                    document.getElementById('ptt-button').disabled = false;
+                });
+
+                device.on('error', function(error) {
+                    console.log('Twilio.Device Error: ' + error.message);
+                });
+
+                await device.register();
+            } catch (error) {
+                console.error('Error setting up Twilio device:', error);
+                alert('Failed to set up Twilio device. Check your credentials and try again.');
+            }
+        });
+
+        document.getElementById('ptt-button').addEventListener('mousedown', () => {
+            if (device) {
+                const destination = document.getElementById('destination').value;
+                connection = device.connect({ params: { To: destination } });
+            }
+        });
+
+        document.getElementById('ptt-button').addEventListener('mouseup', () => {
+            if (connection) {
+                connection.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>

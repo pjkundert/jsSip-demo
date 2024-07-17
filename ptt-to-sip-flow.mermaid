@@ -1,0 +1,18 @@
+sequenceDiagram
+    participant MH as Mobile Handset (WebRTC)
+    participant TS as TwiML Server
+    participant TW as Twilio
+    participant SL as SIP Loudspeaker
+
+    MH->>TS: Request Access Token
+    TS->>MH: Return Access Token
+    MH->>TW: Connect with Access Token
+    TW->>MH: Connection Established
+    MH->>TW: Initiate call to SIP URI
+    TW->>TS: Request call handling instructions
+    TS->>TW: Return TwiML (Dial SIP URI)
+    TW->>SL: Initiate SIP call
+    SL->>TW: Auto-accept call
+    TW->>MH: Call connected
+    MH->>TW: Audio stream (PTT)
+    TW->>SL: Audio stream
