@@ -64,7 +64,7 @@ cli.verbosity                   = 0  # noqa: E305
 def http( interface ):
 
     class TokenGenerator:
-        def GET(self):
+        def POST(self):
             log.info( f"TwiML token request: {web.input()}" )
             # Generate a random identity for this client
             identity = web.utils.random_sha1()

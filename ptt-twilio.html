@@ -64,7 +64,7 @@
             const clientIdentity = document.getElementById('client-identity').value;
 
             try {
-                const response = await fetch('/get-token', {
+                const response = await fetch('/token', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
