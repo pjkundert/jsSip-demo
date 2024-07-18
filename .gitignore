@@ -1,1 +1,30 @@
-*.pem
+*.pyc
+*.log.*
+*.log
+
+# Archive files
+*.tgz
+*.tar
+
+# Editor temporaries
+*~
+.#*
+
+# System generated files
+.DS_Store
+
+*.tex
+auto/
+*.out
+build/
+MANIFEST
+dist/
+*.egg-info/
+.vagrant
+.pytest_cache/
+.cache/
+.eggs
+private_keys
+images/SLIP-39.iconset
+.coverage*
+*.state
