@@ -118,4 +118,9 @@ cli.add_command( http )
 
 
 if __name__ == "__main__":
-    sys.exit( http() )
+    try:
+        cli()
+    except Exception as exc:
+        log.exception( f"Failed due to {exc}" )
+        sys.exit( 1 )
+    sys.exit( 0 )
