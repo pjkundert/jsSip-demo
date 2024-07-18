@@ -54,8 +54,9 @@ clean:
 
 
 
-.PHONY: venv venv-activate
+.PHONY: venv venv-activate.sh venv-activate
 venv:			$(VENV)
+venv-activate.sh:	$(VENV)/venv-activate.sh
 venv-activate:		$(VENV)/venv-activate.sh
 	@echo; echo "*** Activating $< VirtualEnv for Interactive $(SHELL)"
 	@bash --init-file $< -i
