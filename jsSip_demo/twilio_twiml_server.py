@@ -1,8 +1,11 @@
 import click
+import json
 import logging
-import web
 import os
 import sys
+import uuid
+import web
+
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
 from twilio.twiml.voice_response import VoiceResponse, Dial
@@ -16,7 +19,7 @@ account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
 auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
 twiml_app_sid = os.environ.get('TWILIO_TWIML_APP_SID')
 sip_domain = os.environ.get('SIP_DOMAIN')
-
+twilio_from = os.environ.get('TWILIO_FROM', None)
 
 log_cfg                         = {
     "level":    logging.WARNING,
@@ -67,10 +70,15 @@ def http( interface ):
         def POST(self):
             log.info( f"TwiML token request: {web.input()}" )
             # Generate a random identity for this client
-            identity = web.utils.random_sha1()
+            identity = str( uuid.uuid4() )
 
             # Create access token with credentials
-            token = AccessToken(account_sid, auth_token, identity=identity)
+            token = AccessToken(
+                account_sid,
+                auth_token,
+                twiml_app_sid,
+                identity=identity
+            )
 
             # Create a Voice grant and add to token
             voice_grant = VoiceGrant(
@@ -80,10 +88,13 @@ def http( interface ):
             token.add_grant(voice_grant)
 
             # Return token info as JSON
-            return web.json.dumps({
+            response_data = {
                 'identity': identity,
-                'token': token.to_jwt().decode('utf-8')
-            })
+                'token': token.to_jwt()
+            }
+            log.debug( f"Returning TwiML token: {json.dumps( response_data, indent=4 )}" )
+            web.header( 'Content-Type', 'application/json' )
+            return json.dumps( response_data )
 
     class VoiceHandler:
         def POST(self):
@@ -92,19 +103,25 @@ def http( interface ):
             resp = VoiceResponse()
 
             # Get the 'To' parameter from the request
-            to = web.input().get('To')
+            to = web.input().get('To') or 'sip:zifi-horn-2@eyesite.sip.twilio.com'
 
-            # If 'To' is our SIP URI, approve the call
-            if to == f'sip:loudspeaker@{sip_domain}':
-                dial = Dial()
-                dial.sip(to)
-                resp.append(dial)
+            # If 'To' is our SIP URI, approve the call.  For now, approves all calls
+            # to anything @<sip_domain>
+            #if to == f'sip:loudspeaker@{sip_domain}':
+            # Just approve every request for now.
+            if to.endswith( sip_domain ) or True:
+                log.info( f"Dialing: {to}" )
+                dial = Dial( caller_id=twilio_from )
+                dial.sip( to )
+                resp.append( dial )
             else:
                 resp.say("I'm sorry, but I can't connect your call at this time.")
 
             # Set response headers
             web.header('Content-Type', 'text/xml')
-            return str(resp)
+            resp_xml = str( resp )
+            log.debug( f"TwiML response: {resp_xml}"  )
+            return resp_xml
 
     urls			= (
         '/token', 'TokenGenerator',

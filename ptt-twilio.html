@@ -73,12 +73,13 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to get token');
+                  throw new Error(`Failed to get token: ${response.text()}`);
                 }
+	        const response_json = await response.json();
+	        console.log( `Creating device with token: ${JSON.stringify( response_json )}` );
 
-                const { token } = await response.json();
-
-                device = new Twilio.Device(token, {
+                device = new Twilio.Device();
+	        device.setup( response_json.token, {
                     codecPreferences: ['opus', 'pcmu'],
                     fakeLocalDTMF: true,
                     enableRingingState: true,
