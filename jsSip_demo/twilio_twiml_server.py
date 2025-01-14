@@ -143,8 +143,8 @@ def http( interface ):
                 else:
                     log.info( f"Outgoing call (???):  {to}" )
                     dial.client( to )
+                resp.say( f"Connecting to {to}" )
                 resp.append( dial )
-                resp.say( "Hello" )
                 resp.play("https://pbx.admin.zifi.ca/static/sound/pump-action.mp3")
             else:
                 log.info( f"Can't connect: {to}" )
